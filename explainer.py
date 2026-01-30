@@ -1,33 +1,43 @@
-from openai import AzureOpenAI
 import os
+from openai import AzureOpenAI
+from prompts import EXPLAIN_PROMPT
 
-client = AzureOpenAI(
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    api_version="2024-12-01-preview",
-    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
-)
+def _get_client() -> AzureOpenAI:
+    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    api_version = os.getenv("AZURE_OPENAI_API_VERSION")
+    if not api_key or not endpoint or not api_version:
+        raise RuntimeError(
+            "Missing Azure OpenAI env vars. Required: "
+            "AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_VERSION"
+        )
 
-def explain_result(question, result_summary):
+    return AzureOpenAI(
+        api_key=api_key,
+        azure_endpoint=endpoint,
+        api_version=api_version,
+    )
+
+def explain_result(question: str, result_summary: str) -> str:
+    client = _get_client()
+    deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+    if not deployment:
+        raise RuntimeError("Missing AZURE_OPENAI_DEPLOYMENT env var.")
+
     prompt = f"""
-You are a data analyst.
-
 User question:
 {question}
 
-Analysis result:
+Result summary:
 {result_summary}
-
-Explain the result in clear, business-friendly natural language.
-Avoid technical jargon.
-Highlight key insights and implications.
 """
 
-    response = client.chat.completions.create(
-        model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+    resp = client.chat.completions.create(
+        model=deployment,
         messages=[
-            {"role": "system", "content": "You explain data insights clearly."},
+            {"role": "system", "content": EXPLAIN_PROMPT},
             {"role": "user", "content": prompt},
         ],
     )
 
-    return response.choices[0].message.content.strip()
+    return (resp.choices[0].message.content or "").strip()

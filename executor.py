@@ -1,62 +1,67 @@
 import pandas as pd
+import traceback
+import re
+
+_BLOCKED_PATTERNS = [
+    r"\bimport\b",
+    r"\bos\.",
+    r"\bsys\.",
+    r"\bsubprocess\b",
+    r"\bsocket\b",
+    r"\brequests\b",
+    r"\burllib\b",
+    r"\bopen\(",
+    r"\beval\(",
+    r"\bexec\(",
+    r"__",
+    r"\bpd\.read_",
+    r"\bto_csv\b",
+    r"\bto_excel\b",
+]
+
+def _is_code_safe(code: str) -> (bool, str):
+    for pat in _BLOCKED_PATTERNS:
+        if re.search(pat, code):
+            return False, f"Blocked unsafe pattern detected: {pat}"
+    return True, ""
 
 def execute_code(code: str, df: pd.DataFrame):
-    local_vars = {"df": df.copy()}
+    ok, reason = _is_code_safe(code)
+    if not ok:
+        return {"type": "error", "value": reason}
+
+    local_vars = {"df": df}
 
     try:
+        # No globals, minimal locals
         exec(code, {}, local_vars)
-    except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e)
-        }
 
-    if "final_answer" not in local_vars:
-        return {
-            "status": "error",
-            "error": "final_answer was not produced by the analysis code"
-        }
+        if "final_answer" not in local_vars:
+            return {"type": "error", "value": "No variable named 'final_answer' was produced."}
 
-    result = local_vars["final_answer"]
+        result = local_vars["final_answer"]
 
-    # Scalar
-    if isinstance(result, (int, float, str)):
-        return {
-            "status": "ok",
-            "type": "scalar",
-            "value": result
-        }
+        if isinstance(result, pd.DataFrame):
+            return {"type": "dataframe", "value": result}
+        if isinstance(result, pd.Series):
+            return {"type": "series", "value": result}
+        if isinstance(result, (int, float, str)):
+            return {"type": "scalar", "value": result}
 
-    # Pandas Series
-    if isinstance(result, pd.Series):
-        return {
-            "status": "ok",
-            "type": "series",
-            "value": result
-        }
+        return {"type": "error", "value": f"Unsupported result type: {type(result)}"}
 
-    # Pandas DataFrame
-    if isinstance(result, pd.DataFrame):
-        return {
-            "status": "ok",
-            "type": "dataframe",
-            "value": result
-        }
+    except Exception:
+        return {"type": "error", "value": traceback.format_exc()}
 
-    return {
-        "status": "error",
-        "error": f"Unsupported return type: {type(result)}"
-    }
-
-
-def summarize_result(result):
-    if isinstance(result, (int, float)):
-        return f"Value: {result}"
-
-    if isinstance(result, str):
-        return result
-
-    if hasattr(result, "head"):
-        return result.head().to_string()
-
-    return str(result)
+def summarize_result(result, max_rows: int = 20) -> str:
+    """
+    Converts result to a compact text form for the explainer LLM.
+    """
+    try:
+        if isinstance(result, pd.DataFrame):
+            return result.head(max_rows).to_string(index=False)
+        if isinstance(result, pd.Series):
+            return result.head(max_rows).to_string()
+        return str(result)
+    except Exception:
+        return str(result)
