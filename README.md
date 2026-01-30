@@ -1,11 +1,6 @@
-Perfect 👍
-A clean, professional README will massively help your GitHub profile and your Azure deployment.
 
-Below is a ready-to-paste README.md tailored exactly to your project, your Streamlit UI, and recruiter expectations.
 
-⸻
-
-🧠 AI Data Analyst Agent (Streamlit + Python)
+AI Data Analyst Agent (Streamlit + Python)
 
 An AI-powered data analyst application that allows users to ask natural language business questions over tabular data and automatically generates:
 	•	📊 Data analysis
@@ -32,19 +27,6 @@ Built with Python, Streamlit, and Pandas, this project demonstrates how AI-drive
 
 ⸻
 
-🏗 Project Architecture
-
-azure_ai_data_agent/
-│
-├── app.py                 # Streamlit UI (entry point)
-├── analyst.py             # Converts question → analysis logic
-├── executor.py            # Safely executes generated Pandas code
-├── explainer.py           # Natural language explanation generator
-├── prompts.py             # Prompt templates for analysis logic
-├── utils.py               # Shared utility functions
-├── ecommerce_orders_clean.csv
-├── requirements.txt
-└── README.md
 
 
 ⸻
